@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+
+<!-- Mirrored from joschu.net/blog/sending-samples.html by HTTrack Website Copier/3.x [XR&CO'2014], Sat, 20 Mar 2021 11:24:01 GMT -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<title>Sending Samples Without Bits-Back</title>
+<style>
+html {
+  font-size: 100%;
+  overflow-y: scroll;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+body {
+  color: #444;
+  font-family: Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1em;
+  margin: auto;
+  max-width: 60em;
+  background: #fefefe;
+}
+
+a {
+  color: #0645ad;
+  text-decoration: none;
+}
+
+a:visited {
+  color: #0b0080;
+}
+
+a:hover {
+  color: #06e;
+}
+
+a:active {
+  color: #faa700;
+}
+
+a:focus {
+  outline: thin dotted;
+}
+
+*::-moz-selection {
+  background: rgba(255, 255, 0, 0.3);
+  color: #000;
+}
+
+*::selection {
+  background: rgba(255, 255, 0, 0.3);
+  color: #000;
+}
+
+a::-moz-selection {
+  background: rgba(255, 255, 0, 0.3);
+  color: #0645ad;
+}
+
+a::selection {
+  background: rgba(255, 255, 0, 0.3);
+  color: #0645ad;
+}
+
+p {
+  margin: 1em 0;
+}
+
+img {
+  max-width: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #111;
+  /* line-height: 125%; */
+  /* margin-top: 2em; */
+  font-weight: normal;
+}
+
+h4, h5, h6 {
+  font-weight: bold;
+}
+
+h1 {
+  font-size: 2.5em;
+}
+
+h2 {
+  font-size: 2em;
+}
+
+h3 {
+  font-size: 1.5em;
+}
+
+h4 {
+  font-size: 1.2em;
+}
+
+h5 {
+  font-size: 1em;
+}
+
+h6 {
+  font-size: 0.9em;
+}
+
+blockquote {
+  color: #666666;
+  margin: 0;
+  padding-left: 3em;
+  border-left: 0.5em #EEE solid;
+}
+
+hr {
+  display: block;
+  height: 2px;
+  border: 0;
+  border-top: 1px solid #aaa;
+  border-bottom: 1px solid #eee;
+  margin: 1em 0;
+  padding: 0;
+}
+
+pre, code, kbd, samp {
+  color: #000;
+  font-family: monospace, monospace;
+  _font-family: 'courier new', monospace;
+  font-size: 0.98em;
+}
+
+pre {
+  white-space: pre;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+b, strong {
+  font-weight: bold;
+}
+
+dfn {
+  font-style: italic;
+}
+
+ins {
+  background: #ff9;
+  color: #000;
+  text-decoration: none;
+}
+
+mark {
+  background: #ff0;
+  color: #000;
+  font-style: italic;
+  font-weight: bold;
+}
+
+sub, sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sup {
+  top: -0.5em;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+ul, ol {
+  margin: 1em 0;
+  padding: 0 0 0 2em;
+}
+
+li p:last-child {
+  margin-bottom: 0;
+}
+
+ul ul, ol ol {
+  margin: .3em 0;
+}
+
+dl {
+  margin-bottom: 1em;
+}
+
+dt {
+  font-weight: bold;
+  margin-bottom: .8em;
+}
+
+dd {
+  margin: 0 0 .8em 2em;
+}
+
+dd:last-child {
+  margin-bottom: 0;
+}
+
+img {
+  border: 0;
+  -ms-interpolation-mode: bicubic;
+  vertical-align: middle;
+}
+
+figure {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+figure img {
+  border: none;
+  margin: 0 auto;
+}
+
+figcaption {
+  font-size: 0.8em;
+  font-style: italic;
+  margin: 0 0 .8em;
+}
+
+table {
+  margin-bottom: 2em;
+  border-bottom: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+table th {
+  padding: .2em 1em;
+  background-color: #eee;
+  border-top: 1px solid #ddd;
+  border-left: 1px solid #ddd;
+}
+
+table td {
+  padding: .2em 1em;
+  border-top: 1px solid #ddd;
+  border-left: 1px solid #ddd;
+  vertical-align: top;
+}
+
+.author {
+  font-size: 1.2em;
+  text-align: center;
+}
+
+@media only screen and (min-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+}
+@media only screen and (min-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+}
+@media print {
+  * {
+    background: transparent !important;
+    color: black !important;
+    filter: none !important;
+    -ms-filter: none !important;
+  }
+
+  body {
+    font-size: 12pt;
+    max-width: 100%;
+  }
+
+  a, a:visited {
+    text-decoration: underline;
+  }
+
+  hr {
+    height: 1px;
+    border: 0;
+    border-bottom: 1px solid black;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+
+  abbr[title]:after {
+    content: " (" attr(title) ")";
+  }
+
+  .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after {
+    content: "";
+  }
+
+  pre, blockquote {
+    border: 1px solid #999;
+    padding-right: 1em;
+    page-break-inside: avoid;
+  }
+
+  tr, img {
+    page-break-inside: avoid;
+  }
+
+  img {
+    max-width: 100% !important;
+  }
+
+  @page :left {
+    margin: 15mm 20mm 15mm 10mm;
+}
+
+  @page :right {
+    margin: 15mm 10mm 15mm 20mm;
+}
+
+  p, h2, h3 {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+}
+/* Add a black background color to the top navigation */
+.topnav {
+  background-color: #333;
+  overflow: hidden;
+}
+
+/* Style the links inside the navigation bar */
+.topnav a {
+  float: left;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+  font-size: 17px;
+}
+
+.date {
+  color: gray
+}
+</style>
+
+<link rel="stylesheet" href="../static/katex/katex.min.css" />
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    katexRender();
+});
+var katexRender = function() {
+    var mathElements = document.getElementsByClassName("math");
+    var macros = {};
+    for (var i = 0; i < mathElements.length; i++) {
+        var texText = mathElements[i].firstChild;
+        if (mathElements[i].tagName == "SPAN") { 
+        katex.render(texText.data, mathElements[i], { 
+            displayMode: mathElements[i].classList.contains("display"), 
+            throwOnError: false,
+            macros: macros } );
+        }
+    }
+};
+</script>
+<script src="../static/katex/katex.min.js" /></script>
+
+</head>
+<body>
+<div class="topnav">
+  <a href="../index-2.html">John Schulman's Homepage</a>
+</div>
+
+    <h2>Sending Samples Without Bits-Back</h2>
+
+
+    <div class="date">Posted on 2020/03/08</div>
+    <a href="../blog.html">← back to blog index</a>
+
+<p><span class="math display">
+\gdef{\logpinv}{\log p^{-1}}
+\gdef{\klqp}{\mathrm{KL}[q,p]}
+\gdef{\paccz}{p(\mathrm{accept \ }z)}
+\gdef{\pacczn}{p(\mathrm{accept }z^n)}
+\gdef{\logfracn}{\log \frac{q^n(z^n)}{p^n(z^n)}}
+\gdef{\qtil}{\tilde{q}}
+\gdef{\minv}{\frac{1}{M}}
+\gdef{\Pr}{\operatorname{Pr}}
+</span></p>
+<h3 id="intro">Intro</h3>
+<p>I’ll describe a fun little problem in information theory, and a solution–a compression algorithm–based on rejection sampling. This problem is motivated by the coding interpretation of the variational bound, which seems to be a valuable source of intuition. The compression algorithm I describe is distinct from the well-known idea of bits-back coding and gives a more direct interpretation of the variational bound objective. It’s terribly computationally inefficient, but I think it’s interesting as a proof of principle.</p>
+<hr />
+<p><strong>The Problem</strong>. Alice and Bob initially agree on a “prior” distribution <span class="math inline">p(z)</span>, and they have a shared random number generator (RNG). Later, Alice is given a different distribution <span class="math inline">q(z)</span>. <em>How long of a message does Alice need to send to Bob so that by combining the message with the RNG, he can produce a sample <span class="math inline">z \sim q(z)</span>?</em></p>
+<p>More precisely, Alice and Bob agree on a deterministic function <span class="math inline">f(\omega, m)</span> of the RNG state <span class="math inline">\omega</span> and the message <span class="math inline">m</span>. Alice computes the message <span class="math inline">m</span> as a function of <span class="math inline">q</span>, and the distribution of <span class="math inline">f(\omega, m)</span> must equal <span class="math inline">q(z)</span>.</p>
+<hr />
+<p>Let’s analyze the problem for a couple of simple cases:</p>
+<ol type="1">
+<li>If <span class="math inline">q(z)=p(z)</span>, then the message length is zero: Alice can just tell Bob to take his first sample from <span class="math inline">p</span>.</li>
+<li>If <span class="math inline">q(z)=I[z=z_0]</span>, i.e. an indicator on one value <span class="math inline">z_0</span>, then the best Alice can do is to send <span class="math inline">z_0</span> with message length <span class="math inline">\logpinv(z_0)</span>.</li>
+</ol>
+<p>Note that this problem is subtlely different from the problem where Alice samples <span class="math inline">z \sim q</span> (using a non-shared RNG) and then must send it to Bob. Sending arbitrary <span class="math inline">z</span> requires expected code-length <span class="math inline">E_{q}[\logpinv(z)]</span>. If Alice samples <span class="math inline">z\sim q</span> and sends it to Bob using the code from <span class="math inline">p(z)</span>, it would require more bits than necessary. In particular, it would take <span class="math inline">S[p]</span> bits in the case that <span class="math inline">q(z)=p(z)</span> rather than zero.</p>
+<p>You might guess that the general answer is <span class="math inline">\klqp</span>, which gives the correct answer in examples (1) and (2) above. That guess is correct! I’ll prove it below (after adding some pesky details). But first, I’ll explain the motivation for this communication problem.</p>
+<h3 id="variational-upper-bound">Variational Upper Bound</h3>
+<p>Many concepts of probability have a corresponding interpretation in terms of codes and compression. A key idea, needed for models with latent variables (like the variational autoencoder (VAE)) is variational upper bound (VUB). It’s usually called the variational <em>lower</em> bound, but we’ll flip the sign so it’ll correspond to code-length.</p>
+<p>The VUB is the objective used for fitting probabilistic models with latent variables. Given a model <span class="math inline">p(x,z)=p(z)p(x|z)</span>, we typically want to maximize <span class="math inline">\log p(x)</span>, but there’s an intractable sum over <span class="math inline">z</span>. The VUB introduces a sample distribution <span class="math inline">q(z)</span>, giving an upper bound on the log-loss. <span class="math display">
+\logpinv(x) \le \underbrace{\klqp}_{(*)} + \underbrace{E_{z \sim q}[\logpinv(x|z)]}_{(**)}
+</span> Equality occurs at <span class="math inline">q(z)=p(z|x)</span>, and training (e.g., for the VAE) involves jointly minimizing the RHS with respect to <span class="math inline">p</span> and <span class="math inline">q</span></p>
+<p>The LHS of the inequality reads “the number of bits Alice needs to send to Bob to transmit x, given that they previously agreed on distribution <span class="math inline">p(x)</span>”. Can the RHS be interpreted as a concrete compression scheme for <span class="math inline">x</span>, involving a code <span class="math inline">z</span> that partially encodes x?</p>
+<p>We’d like to say something like this:</p>
+<ul>
+<li>(*) is the number of bits Alice must send Bob, so Bob gets a sample <span class="math inline">z \sim q</span>.</li>
+<li>(**) is the expected cost for Bob to fully reconstruct <span class="math inline">x</span>, given the <span class="math inline">z</span> he received.</li>
+</ul>
+<p>The second point, interpreting <span class="math inline">E_{z \sim q}[\logpinv(x|z)]</span> as the code-length of <span class="math inline">x</span> given <span class="math inline">z</span>, is clearly true. The first point is non-obvious, and it’s precisely the problem stated above.</p>
+<p>The variational upper bound is indeed the code-length under a well-known compression scheme, called <em>bits-back coding</em>. However, bits-back coding doesn’t quite match the simple two-part-code interpretation given above. In bits-back coding, Alice samples <span class="math inline">z</span> using some auxiliary data as the entropy source, then sends the whole sample to Bob at an expected cost of <span class="math inline">E_q[\logpinv(z)]</span>. Then, she sends <span class="math inline">x</span> at a cost of <span class="math inline">\logpinv(x | z)</span>. Finally, using <span class="math inline">x</span> to infer the distribution <span class="math inline">q</span>, Bob recovers the <span class="math inline">E_q[\log q^{-1}(z)]</span> bits of auxiliary data, giving a net code-length of <span class="math inline">E_q[\logpinv(z)]+E_q[\logpinv(x | z)]-E_q[\log q^{-1}(z)]=\klqp + E_q[\logpinv(x | z)]</span>.</p>
+<p>Bits-back is a pretty slick idea, but I’ve always wondered if the interpretation as a two-part code can be directly implemented. In particular, can the code-word <span class="math inline">z</span> be communicated using cost <span class="math inline">\klqp</span>, without using <span class="math inline">x</span> at all?</p>
+<h3 id="naive-rejection-sampling-suboptimal">Naive Rejection Sampling (Suboptimal)</h3>
+<p>Let’s return to the problem, where Alice needs to send Bob a message that lets him sample <span class="math inline">z \sim q</span>. One natural idea is to use rejection sampling. Rejection sampling allows you to sample from <span class="math inline">q(z)</span> by (stochastically) filtering samples from a different distribution <span class="math inline">p(z)</span>. Alice uses her RNG to generate a sequence of IID samples from <span class="math inline">p(z)</span>, but applies the rejection criterion so that the first accepted sample is a sample from <span class="math inline">q(z)</span>. Then she sends to Bob the index <span class="math inline">n</span> of the first accepted sample. Bob runs the same process on his end and takes the <span class="math inline">n</span>th sample, which is the same as Alice’s <span class="math inline">n</span>th sample due to the shared RNG.</p>
+<p>Now let’s look at the expected code-length of this protocol. In rejection sampling, we sample <span class="math inline">z \sim p(z)</span> and accept with probability <span class="math inline">\paccz = \minv\frac{q(z)}{p(z)}</span>, where <span class="math inline">M=\max_z \frac{q(z)}{p(z)}</span>.</p>
+<p>The probability of accepting a sample is <span class="math inline">E_z[\paccz]=\minv</span>. Given that an event has probability <span class="math inline">\epsilon</span>, the expected number of samples until it occurs is <span class="math inline">1/\epsilon</span>. Hence, the expected number of trials of the rejection sampling process is just <span class="math inline">M</span>. The code-length of this integer is <span class="math inline">\log M=\log \max_z \frac{q(z)}{p(z)} = \max_z \log \frac{q(z)}{p(z)}</span>.</p>
+<p>Hence, this rejection sampling procedure attains a code-length <span class="math inline">\max_z \log \frac{q(z)}{p(z)}</span>. But we’ve claimed above that the optimal code-length is <span class="math inline">\klqp=E_{z\sim q}[\log \frac{q(z)}{p(z)}]</span>. So rejection sampling is suboptimal in general, replacing the expectation <span class="math inline">E_q</span> by a max <span class="math inline">\max_q</span>.</p>
+<h3 id="modified-rejection-sampling">Modified Rejection Sampling</h3>
+<p>The rejection sampling approach almost works, but it gives suboptimal code-length. Like many ideas in coding theory, we can fix the problem by grouping together a bunch of messages and use the law of large numbers. We’ll group together <span class="math inline">n</span> samples and do rejection sampling with <span class="math inline">\log M \approx n\klqp</span>.</p>
+<p>Let’s modify the communication problem to have Alice send Bob <span class="math inline">n</span> samples at a time. In the modified problem, Alice and Bob agree on <span class="math inline">(p_1, p_2, \dots, p_n)</span>; Alice needs to send Bob a sample <span class="math inline">(z_1, z_2, \dots, z_n)</span> from <span class="math inline">(q_1, q_2, \dots, q_n)</span>. To simplify the argument, let all of the distributions be the equal; <span class="math inline">p_1 = p_2 = \dots = p_n</span>; <span class="math inline">q_1 = q_2 = \dots = q_n</span>. The argument can easily be modified for the case where these distributions are not equal.</p>
+<p>As for notation, let <span class="math inline">z^n</span> denote an n-tuple of samples, and let <span class="math inline">p^n(z^n)</span> and <span class="math inline">q^n(z^n)</span> denote the joint distributions over n-tuples of samples.</p>
+<p>We’ll define the communication protocol as follows. Alice repeatedly samples <span class="math inline">z^n \sim p^n</span>, accepting with probability <span class="math inline">\min\left(1, \minv\frac{q^n(z^n)}{p^n(z^n)}\right)</span>, where <span class="math inline">\log M=n(\klqp+\epsilon)</span>, and <span class="math inline">\epsilon</span> is a small number that <span class="math inline">\rightarrow 0</span> as <span class="math inline">n \rightarrow \infty</span>. Then she sends Bob an integer <span class="math inline">k</span>–the number of trials until acceptance, and he takes the <span class="math inline">k</span>th sample from <span class="math inline">p^n</span>.</p>
+<p>To show that this protocol works, we will prove the following two statements:</p>
+<ol type="1">
+<li>The expected message length per sample <span class="math inline">z_i</span> approaches <span class="math inline">\klqp</span> as <span class="math inline">n \rightarrow \infty</span>.</li>
+<li>The total variation divergence between each decoded <span class="math inline">z_i</span> and <span class="math inline">q(z)</span> approaches zero as <span class="math inline">n \rightarrow \infty</span>.</li>
+</ol>
+<p>The proof will be based on the idea of typical sets introduced by Shannon. We’ll also explain how to slightly modify the protocol to send exactly <span class="math inline">q</span> instead of an approximation (at the cost of some extra bits).</p>
+<p>Consider the log ratio <span class="math display">
+\log \frac{q^n(z^n)}{p^n(z^n)} = \sum_{i=1}^n \log \frac{q(z_i)}{p(z_i)}
+</span> For <span class="math inline">z</span> sampled from <span class="math inline">q</span>, the expectation of each of these terms is <span class="math inline">E_q[\log \frac{q(z)}{p(z)}]=\klqp</span>. Informally speaking, this sum will probably be around <span class="math inline">n\klqp \pm O(\sqrt{n})</span>. Let’s state this more formally.</p>
+<p>Let <span class="math inline">\epsilon&gt;0</span> be a small number. As <span class="math inline">n \rightarrow \infty</span>, the sample average of <span class="math inline">\log \frac{q(z)}{p(z)}</span> approaches its mean value, <span class="math inline">\klqp</span>, so we get <span class="math display">
+\Pr
+\left(\frac{1}{n}\logfracn \le \klqp+\epsilon\right) \ge 1-\epsilon
+</span> for <span class="math inline">z^n \sim q^n</span>. Let <span class="math inline">S</span> denote the set of <span class="math inline">z^n</span> satisfying <span class="math inline">\frac{1}{n}\logfracn \le \klqp - \epsilon</span>. <span class="math inline">S</span> satisfies <span class="math inline">\Pr(z\sim q \in S) \ge 1-\epsilon</span>.</p>
+<p>Alice does rejection sampling by sampling <span class="math inline">z^n \sim p^n</span> and then accepting with probability <span class="math inline">\Pr(\text{accept \ } z^n) = \min(1, \minv\frac{q^n(z^n)}{p^n(z^n)})</span>, where <span class="math inline">\log M=n(\klqp+\epsilon)</span>. <span class="math display">\Pr(\text{sample } z^n \sim p^n \text{ and accept }) = \begin{cases}
+\frac{q^n(z^n)}{M} \qquad z  \in S \\
+&lt;\frac{q^n(z^n)}{M} \qquad z \notin S \\
+\end{cases}
+</span> Now let’s compute the probability of acceptance: <span class="math display">
+\begin{aligned}
+\Pr(\text{accept})&amp;=\sum_{z^n}\Pr(\text{sample } z^n \sim p^n \text{ and accept })\\
+&amp;=\sum_{z^n \in S} \frac{q^n(z^n)}{M} + \sum_{z \notin S} \text{[positive value]}\\
+&amp;\ge  \sum_{z^n \in S} \frac{q^n(z^n)}{M}\\
+&amp;\ge (1 - \epsilon) / M
+\end{aligned}
+</span> The message length is <span class="math inline">\log(\frac{1}{\Pr(\text{accept})})=\log M + O(\epsilon) = n\klqp + O(\epsilon)</span>, proving the first part of the proposition.</p>
+<p>For the second part of the proposition, let’s define <span class="math inline">\qtil^N</span> to be the decoded distribution over <span class="math inline">z^n</span> when following the rejection sampling protocol. <span class="math display">
+\qtil^n(z^n) \propto p^n(z^n)P(\text{accept } z^n)
+</span> Define <span class="math inline">q_S</span> to be the distribution of samples from <span class="math inline">q^n</span>, conditioned on membership in <span class="math inline">S</span>. For <span class="math inline">z^n \in S</span>, <span class="math inline">q^n</span> are proportional, as follows: <span class="math display">
+q^n(z^n) = q_S(z^n)  P_{S|q} \quad\text{where}\quad P_{S|q}=\Pr(z^n \sim q^n \in S)\\
+\qtil^n(z^n) = q_S(z^n)  P_{S|\qtil} \quad\text{where}\quad P_{S|\qtil} =\Pr(z^n \sim \qtil^n \in S)
+</span> Furthermore, <span class="math inline">1 \ge P_{S|\qtil} \ge P_{S|q} \ge 1- \epsilon</span>. A routine calculation shows that the total variation divergence is <span class="math inline">O(\epsilon)</span>. This proves the second part of the proposition.</p>
+<p>Finally, it’s a bit unsatisfying that Alice doesn’t send exactly <span class="math inline">q^n</span>, she sends an approximation <span class="math inline">\qtil^n</span>. We can easily fix this issue and have Alice send exactly <span class="math inline">q^n</span> at the cost of some extra bits. Here’s a sketch. With probability <span class="math inline">P_{S|q}</span>, we perform the protocol above. With probability <span class="math inline">1-P_{S|q}</span>, Alice directly sends <span class="math inline">z^n</span>, sampled the compliment of <span class="math inline">S</span>, at a cost of <span class="math inline">-\log p^n(z^n)</span>. Overall, the extra cost is <span class="math inline">O(\epsilon)</span>.</p>
+<h3 id="discussion">Discussion</h3>
+<p>This procedure is computationally intractable, since it requires Alice to generate a sequence of samples from an exponentially large set of tuples <span class="math inline">(z_1, z_2, \dots, z_n)</span>. This contrasts with bits-back coding, which can be implemented efficiently. In fact, a <a href="https://arxiv.org/abs/1901.04866">recent paper</a> showed how to implement bits-back coding with VAEs, cleverly using ANS (a relative of arithmetic coding).</p>
+<p>It’s possible that there’s a procedure like arithmetic coding that solves our problem, giving an efficient algorithm in the case that <span class="math inline">z</span> lives in a small discrete set. If <span class="math inline">z</span> is high-dimensional, then it seems unlikely that we can solve the transmission problem efficiently without additional assumptions–all we can do is enumerate samples from <span class="math inline">p</span> and index into them.</p>
+<p>Finally, I wouldn’t be surprised if this problem is well-known–it seems like a natural way of formalizing the idea of lossy data transmission. If so, please send me a pointer.</p>
+<p><em>Thanks to Nik Tezak and Beth Barnes for helpful feedback</em>.</p>
+
+</body>
+
+<!-- Mirrored from joschu.net/blog/sending-samples.html by HTTrack Website Copier/3.x [XR&CO'2014], Sat, 20 Mar 2021 11:24:52 GMT -->
+</html>

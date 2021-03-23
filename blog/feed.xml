@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <author>John Schulman</author>
+    <title>John's blog</title>
+    
+    <entry>
+        <title>Sending Samples Without Bits-Back</title>
+        <link href="/blog/sending-samples.html"/>
+        <content type="html"><p><span class="math display">
+\gdef{\logpinv}{\log p^{-1}}
+\gdef{\klqp}{\mathrm{KL}[q,p]}
+\gdef{\paccz}{p(\mathrm{accept \ }z)}
+\gdef{\pacczn}{p(\mathrm{accept }z^n)}
+\gdef{\logfracn}{\log \frac{q^n(z^n)}{p^n(z^n)}}
+\gdef{\qtil}{\tilde{q}}
+\gdef{\minv}{\frac{1}{M}}
+\gdef{\Pr}{\operatorname{Pr}}
+</span></p>
+<h3 id="intro">Intro</h3>
+<p>I’ll describe a fun little problem in information theory, and a solution–a compression algorithm–based on rejection sampling. This problem is motivated by the coding interpretation of the variational bound, which seems to be a valuable source of intuition. The compression algorithm I describe is distinct from the well-known idea of bits-back coding and gives a more direct interpretation of the variational bound objective. It’s terribly computationally inefficient, but I think it’s interesting as a proof of principle.</p>
+<hr />
+<p><strong>The Problem</strong>. Alice and Bob initially agree on a “prior” distribution <span class="math inline">p(z)</span>, and they have a shared random number generator (RNG). Later, Alice is given a different distribution <span class="math inline">q(z)</span>. <em>How long of a message does Alice need to send to Bob so that by combining the message with the RNG, he can produce a sample <span class="math inline">z \sim q(z)</span>?</em></p>
+<p>More precisely, Alice and Bob agree on a deterministic function <span class="math inline">f(\omega, m)</span> of the RNG state <span class="math inline">\omega</span> and the message <span class="math inline">m</span>. Alice computes the message <span class="math inline">m</span> as a function of <span class="math inline">q</span>, and the distribution of <span class="math inline">f(\omega, m)</span> must equal <span class="math inline">q(z)</span>.</p>
+<hr />
+<p>Let’s analyze the problem for a couple of simple cases:</p>
+<ol type="1">
+<li>If <span class="math inline">q(z)=p(z)</span>, then the message length is zero: Alice can just tell Bob to take his first sample from <span class="math inline">p</span>.</li>
+<li>If <span class="math inline">q(z)=I[z=z_0]</span>, i.e. an indicator on one value <span class="math inline">z_0</span>, then the best Alice can do is to send <span class="math inline">z_0</span> with message length <span class="math inline">\logpinv(z_0)</span>.</li>
+</ol>
+<p>Note that this problem is subtlely different from the problem where Alice samples <span class="math inline">z \sim q</span> (using a non-shared RNG) and then must send it to Bob. Sending arbitrary <span class="math inline">z</span> requires expected code-length <span class="math inline">E_{q}[\logpinv(z)]</span>. If Alice samples <span class="math inline">z\sim q</span> and sends it to Bob using the code from <span class="math inline">p(z)</span>, it would require more bits than necessary. In particular, it would take <span class="math inline">S[p]</span> bits in the case that <span class="math inline">q(z)=p(z)</span> rather than zero.</p>
+<p>You might guess that the general answer is <span class="math inline">\klqp</span>, which gives the correct answer in examples (1) and (2) above. That guess is correct! I’ll prove it below (after adding some pesky details). But first, I’ll explain the motivation for this communication problem.</p>
+<h3 id="variational-upper-bound">Variational Upper Bound</h3>
+<p>Many concepts of probability have a corresponding interpretation in terms of codes and compression. A key idea, needed for models with latent variables (like the variational autoencoder (VAE)) is variational upper bound (VUB). It’s usually called the variational <em>lower</em> bound, but we’ll flip the sign so it’ll correspond to code-length.</p>
+<p>The VUB is the objective used for fitting probabilistic models with latent variables. Given a model <span class="math inline">p(x,z)=p(z)p(x|z)</span>, we typically want to maximize <span class="math inline">\log p(x)</span>, but there’s an intractable sum over <span class="math inline">z</span>. The VUB introduces a sample distribution <span class="math inline">q(z)</span>, giving an upper bound on the log-loss. <span class="math display">
+\logpinv(x) \le \underbrace{\klqp}_{(*)} + \underbrace{E_{z \sim q}[\logpinv(x|z)]}_{(**)}
+</span> Equality occurs at <span class="math inline">q(z)=p(z|x)</span>, and training (e.g., for the VAE) involves jointly minimizing the RHS with respect to <span class="math inline">p</span> and <span class="math inline">q</span></p>
+<p>The LHS of the inequality reads “the number of bits Alice needs to send to Bob to transmit x, given that they previously agreed on distribution <span class="math inline">p(x)</span>”. Can the RHS be interpreted as a concrete compression scheme for <span class="math inline">x</span>, involving a code <span class="math inline">z</span> that partially encodes x?</p>
+<p>We’d like to say something like this:</p>
+<ul>
+<li>(*) is the number of bits Alice must send Bob, so Bob gets a sample <span class="math inline">z \sim q</span>.</li>
+<li>(**) is the expected cost for Bob to fully reconstruct <span class="math inline">x</span>, given the <span class="math inline">z</span> he received.</li>
+</ul>
+<p>The second point, interpreting <span class="math inline">E_{z \sim q}[\logpinv(x|z)]</span> as the code-length of <span class="math inline">x</span> given <span class="math inline">z</span>, is clearly true. The first point is non-obvious, and it’s precisely the problem stated above.</p>
+<p>The variational upper bound is indeed the code-length under a well-known compression scheme, called <em>bits-back coding</em>. However, bits-back coding doesn’t quite match the simple two-part-code interpretation given above. In bits-back coding, Alice samples <span class="math inline">z</span> using some auxiliary data as the entropy source, then sends the whole sample to Bob at an expected cost of <span class="math inline">E_q[\logpinv(z)]</span>. Then, she sends <span class="math inline">x</span> at a cost of <span class="math inline">\logpinv(x | z)</span>. Finally, using <span class="math inline">x</span> to infer the distribution <span class="math inline">q</span>, Bob recovers the <span class="math inline">E_q[\log q^{-1}(z)]</span> bits of auxiliary data, giving a net code-length of <span class="math inline">E_q[\logpinv(z)]+E_q[\logpinv(x | z)]-E_q[\log q^{-1}(z)]=\klqp + E_q[\logpinv(x | z)]</span>.</p>
+<p>Bits-back is a pretty slick idea, but I’ve always wondered if the interpretation as a two-part code can be directly implemented. In particular, can the code-word <span class="math inline">z</span> be communicated using cost <span class="math inline">\klqp</span>, without using <span class="math inline">x</span> at all?</p>
+<h3 id="naive-rejection-sampling-suboptimal">Naive Rejection Sampling (Suboptimal)</h3>
+<p>Let’s return to the problem, where Alice needs to send Bob a message that lets him sample <span class="math inline">z \sim q</span>. One natural idea is to use rejection sampling. Rejection sampling allows you to sample from <span class="math inline">q(z)</span> by (stochastically) filtering samples from a different distribution <span class="math inline">p(z)</span>. Alice uses her RNG to generate a sequence of IID samples from <span class="math inline">p(z)</span>, but applies the rejection criterion so that the first accepted sample is a sample from <span class="math inline">q(z)</span>. Then she sends to Bob the index <span class="math inline">n</span> of the first accepted sample. Bob runs the same process on his end and takes the <span class="math inline">n</span>th sample, which is the same as Alice’s <span class="math inline">n</span>th sample due to the shared RNG.</p>
+<p>Now let’s look at the expected code-length of this protocol. In rejection sampling, we sample <span class="math inline">z \sim p(z)</span> and accept with probability <span class="math inline">\paccz = \minv\frac{q(z)}{p(z)}</span>, where <span class="math inline">M=\max_z \frac{q(z)}{p(z)}</span>.</p>
+<p>The probability of accepting a sample is <span class="math inline">E_z[\paccz]=\minv</span>. Given that an event has probability <span class="math inline">\epsilon</span>, the expected number of samples until it occurs is <span class="math inline">1/\epsilon</span>. Hence, the expected number of trials of the rejection sampling process is just <span class="math inline">M</span>. The code-length of this integer is <span class="math inline">\log M=\log \max_z \frac{q(z)}{p(z)} = \max_z \log \frac{q(z)}{p(z)}</span>.</p>
+<p>Hence, this rejection sampling procedure attains a code-length <span class="math inline">\max_z \log \frac{q(z)}{p(z)}</span>. But we’ve claimed above that the optimal code-length is <span class="math inline">\klqp=E_{z\sim q}[\log \frac{q(z)}{p(z)}]</span>. So rejection sampling is suboptimal in general, replacing the expectation <span class="math inline">E_q</span> by a max <span class="math inline">\max_q</span>.</p>
+<h3 id="modified-rejection-sampling">Modified Rejection Sampling</h3>
+<p>The rejection sampling approach almost works, but it gives suboptimal code-length. Like many ideas in coding theory, we can fix the problem by grouping together a bunch of messages and use the law of large numbers. We’ll group together <span class="math inline">n</span> samples and do rejection sampling with <span class="math inline">\log M \approx n\klqp</span>.</p>
+<p>Let’s modify the communication problem to have Alice send Bob <span class="math inline">n</span> samples at a time. In the modified problem, Alice and Bob agree on <span class="math inline">(p_1, p_2, \dots, p_n)</span>; Alice needs to send Bob a sample <span class="math inline">(z_1, z_2, \dots, z_n)</span> from <span class="math inline">(q_1, q_2, \dots, q_n)</span>. To simplify the argument, let all of the distributions be the equal; <span class="math inline">p_1 = p_2 = \dots = p_n</span>; <span class="math inline">q_1 = q_2 = \dots = q_n</span>. The argument can easily be modified for the case where these distributions are not equal.</p>
+<p>As for notation, let <span class="math inline">z^n</span> denote an n-tuple of samples, and let <span class="math inline">p^n(z^n)</span> and <span class="math inline">q^n(z^n)</span> denote the joint distributions over n-tuples of samples.</p>
+<p>We’ll define the communication protocol as follows. Alice repeatedly samples <span class="math inline">z^n \sim p^n</span>, accepting with probability <span class="math inline">\min\left(1, \minv\frac{q^n(z^n)}{p^n(z^n)}\right)</span>, where <span class="math inline">\log M=n(\klqp+\epsilon)</span>, and <span class="math inline">\epsilon</span> is a small number that <span class="math inline">\rightarrow 0</span> as <span class="math inline">n \rightarrow \infty</span>. Then she sends Bob an integer <span class="math inline">k</span>–the number of trials until acceptance, and he takes the <span class="math inline">k</span>th sample from <span class="math inline">p^n</span>.</p>
+<p>To show that this protocol works, we will prove the following two statements:</p>
+<ol type="1">
+<li>The expected message length per sample <span class="math inline">z_i</span> approaches <span class="math inline">\klqp</span> as <span class="math inline">n \rightarrow \infty</span>.</li>
+<li>The total variation divergence between each decoded <span class="math inline">z_i</span> and <span class="math inline">q(z)</span> approaches zero as <span class="math inline">n \rightarrow \infty</span>.</li>
+</ol>
+<p>The proof will be based on the idea of typical sets introduced by Shannon. We’ll also explain how to slightly modify the protocol to send exactly <span class="math inline">q</span> instead of an approximation (at the cost of some extra bits).</p>
+<p>Consider the log ratio <span class="math display">
+\log \frac{q^n(z^n)}{p^n(z^n)} = \sum_{i=1}^n \log \frac{q(z_i)}{p(z_i)}
+</span> For <span class="math inline">z</span> sampled from <span class="math inline">q</span>, the expectation of each of these terms is <span class="math inline">E_q[\log \frac{q(z)}{p(z)}]=\klqp</span>. Informally speaking, this sum will probably be around <span class="math inline">n\klqp \pm O(\sqrt{n})</span>. Let’s state this more formally.</p>
+<p>Let <span class="math inline">\epsilon&gt;0</span> be a small number. As <span class="math inline">n \rightarrow \infty</span>, the sample average of <span class="math inline">\log \frac{q(z)}{p(z)}</span> approaches its mean value, <span class="math inline">\klqp</span>, so we get <span class="math display">
+\Pr
+\left(\frac{1}{n}\logfracn \le \klqp+\epsilon\right) \ge 1-\epsilon
+</span> for <span class="math inline">z^n \sim q^n</span>. Let <span class="math inline">S</span> denote the set of <span class="math inline">z^n</span> satisfying <span class="math inline">\frac{1}{n}\logfracn \le \klqp - \epsilon</span>. <span class="math inline">S</span> satisfies <span class="math inline">\Pr(z\sim q \in S) \ge 1-\epsilon</span>.</p>
+<p>Alice does rejection sampling by sampling <span class="math inline">z^n \sim p^n</span> and then accepting with probability <span class="math inline">\Pr(\text{accept \ } z^n) = \min(1, \minv\frac{q^n(z^n)}{p^n(z^n)})</span>, where <span class="math inline">\log M=n(\klqp+\epsilon)</span>. <span class="math display">\Pr(\text{sample } z^n \sim p^n \text{ and accept }) = \begin{cases}
+\frac{q^n(z^n)}{M} \qquad z  \in S \\
+&lt;\frac{q^n(z^n)}{M} \qquad z \notin S \\
+\end{cases}
+</span> Now let’s compute the probability of acceptance: <span class="math display">
+\begin{aligned}
+\Pr(\text{accept})&amp;=\sum_{z^n}\Pr(\text{sample } z^n \sim p^n \text{ and accept })\\
+&amp;=\sum_{z^n \in S} \frac{q^n(z^n)}{M} + \sum_{z \notin S} \text{[positive value]}\\
+&amp;\ge  \sum_{z^n \in S} \frac{q^n(z^n)}{M}\\
+&amp;\ge (1 - \epsilon) / M
+\end{aligned}
+</span> The message length is <span class="math inline">\log(\frac{1}{\Pr(\text{accept})})=\log M + O(\epsilon) = n\klqp + O(\epsilon)</span>, proving the first part of the proposition.</p>
+<p>For the second part of the proposition, let’s define <span class="math inline">\qtil^N</span> to be the decoded distribution over <span class="math inline">z^n</span> when following the rejection sampling protocol. <span class="math display">
+\qtil^n(z^n) \propto p^n(z^n)P(\text{accept } z^n)
+</span> Define <span class="math inline">q_S</span> to be the distribution of samples from <span class="math inline">q^n</span>, conditioned on membership in <span class="math inline">S</span>. For <span class="math inline">z^n \in S</span>, <span class="math inline">q^n</span> are proportional, as follows: <span class="math display">
+q^n(z^n) = q_S(z^n)  P_{S|q} \quad\text{where}\quad P_{S|q}=\Pr(z^n \sim q^n \in S)\\
+\qtil^n(z^n) = q_S(z^n)  P_{S|\qtil} \quad\text{where}\quad P_{S|\qtil} =\Pr(z^n \sim \qtil^n \in S)
+</span> Furthermore, <span class="math inline">1 \ge P_{S|\qtil} \ge P_{S|q} \ge 1- \epsilon</span>. A routine calculation shows that the total variation divergence is <span class="math inline">O(\epsilon)</span>. This proves the second part of the proposition.</p>
+<p>Finally, it’s a bit unsatisfying that Alice doesn’t send exactly <span class="math inline">q^n</span>, she sends an approximation <span class="math inline">\qtil^n</span>. We can easily fix this issue and have Alice send exactly <span class="math inline">q^n</span> at the cost of some extra bits. Here’s a sketch. With probability <span class="math inline">P_{S|q}</span>, we perform the protocol above. With probability <span class="math inline">1-P_{S|q}</span>, Alice directly sends <span class="math inline">z^n</span>, sampled the compliment of <span class="math inline">S</span>, at a cost of <span class="math inline">-\log p^n(z^n)</span>. Overall, the extra cost is <span class="math inline">O(\epsilon)</span>.</p>
+<h3 id="discussion">Discussion</h3>
+<p>This procedure is computationally intractable, since it requires Alice to generate a sequence of samples from an exponentially large set of tuples <span class="math inline">(z_1, z_2, \dots, z_n)</span>. This contrasts with bits-back coding, which can be implemented efficiently. In fact, a <a href="https://arxiv.org/abs/1901.04866">recent paper</a> showed how to implement bits-back coding with VAEs, cleverly using ANS (a relative of arithmetic coding).</p>
+<p>It’s possible that there’s a procedure like arithmetic coding that solves our problem, giving an efficient algorithm in the case that <span class="math inline">z</span> lives in a small discrete set. If <span class="math inline">z</span> is high-dimensional, then it seems unlikely that we can solve the transmission problem efficiently without additional assumptions–all we can do is enumerate samples from <span class="math inline">p</span> and index into them.</p>
+<p>Finally, I wouldn’t be surprised if this problem is well-known–it seems like a natural way of formalizing the idea of lossy data transmission. If so, please send me a pointer.</p>
+<p><em>Thanks to Nik Tezak and Beth Barnes for helpful feedback</em>.</p>
+</content>
+    </entry>
+    
+    <entry>
+        <title>Approximating KL Divergence</title>
+        <link href="/blog/kl-approx.html"/>
+        <content type="html"><p><span class="math display">
+\gdef\ratio{\tfrac{p(x)}{q(x)}}
+\gdef\iratio{\tfrac{q(x)}{p(x)}}
+\gdef\half{\tfrac{1}{2}}
+\gdef{\klqp}{\mathrm{KL}[q,p]}
+\gdef{\klpq}{\mathrm{KL}[p,q]}
+</span></p>
+<p>This post is about Monte-Carlo approximations of KL divergence. <span class="math display">
+KL[q, p] = \sum_x q(x) \log \iratio = E_{ x \sim q}[\log \iratio ]
+</span> It explains a trick I’ve used in various code, where I approximate <span class="math inline">\klqp</span> as a sample average of <span class="math inline">\half (\log p(x) - \log q(x))^2</span>, for samples <span class="math inline">x</span> from <span class="math inline">q</span>, rather the more standard <span class="math inline">\log \frac{q(x)}{p(x)}</span>. This post will explain why this expression is a good (though biased) estimator of KL, and how to make it unbiased while preserving its low variance.</p>
+<p>Our options for computing KL depend on what kind of access we have to <span class="math inline">p</span> and <span class="math inline">q</span>. Here, we’ll be assuming that we can compute the probabilities (or probability densities) <span class="math inline">p(x)</span> and <span class="math inline">q(x)</span> for any <span class="math inline">x</span>, but we can’t calculate the sum over <span class="math inline">x</span> analytically. Why wouldn’t we be able to calculate it analytically?</p>
+<ol type="1">
+<li>Computing it exactly requires too much computation or memory.</li>
+<li>There’s no closed form expression.</li>
+<li>We can simplify code by just storing the log-prob, not the whole distribution. This is a reasonable choice if KL is just being used as a diagnostic, as is often the case in reinforcement learning.</li>
+</ol>
+<p>The most common strategy for estimating sums or integrals is to use a Monte-Carlo estimate. Given samples <span class="math inline">x_1, x_2, \dots \sim q</span>, how can we construct a good estimate?</p>
+<p>A good estimator is unbiased (it has the right mean) and has low variance. We know that one unbiased estimator (under samples from <span class="math inline">q</span>) is <span class="math inline">\log \iratio</span>. However, it has high-variance, as it’s negative for half of the samples, whereas KL is always positive. Let’s call this naive estimator <span class="math inline">k_1 = \log \iratio = - \log r</span>, where we’ve defined the ratio <span class="math inline">r=\ratio</span> that’ll appear frequently in the subsequent calculations.</p>
+<p>An alternative estimator, which has lower variance but is biased, is <span class="math inline">\frac{1}{2}(\log \ratio)^2 = \half (\log r)^2</span>. Let’s call this estimator <span class="math inline">k_2</span>. Intuitively, <span class="math inline">k_2</span> seems to be better because each sample tells you how far apart <span class="math inline">p</span> and <span class="math inline">q</span> are, and it’s always positive. Empirically, <span class="math inline">k_2</span> does indeed have much lower variance than <span class="math inline">k_1</span>, and also has remarkably low bias. (We’ll show this in an experiment below.)</p>
+<p>There’s a good reason why estimator <span class="math inline">k_2</span> has low bias: its expectation is an <a href="https://en.wikipedia.org/wiki/F-divergence">f-divergence</a>. An f-divergence is defined as <span class="math inline">D_f(p,q) = E_{x \sim q}[f(\ratio)]</span> for a convex function <span class="math inline">f</span>. KL divergence and various other well-known probability distances are f-divergences. Now here’s the key non-obvious fact: all f-divergences with differentiable <span class="math inline">f</span> look like KL divergence up to second order when <span class="math inline">q</span> is close to <span class="math inline">p</span>. Namely, for a parametrized distribution <span class="math inline">p_{\theta}</span>,</p>
+<p><span class="math display">
+D_f(p_0, p_{\theta}) = \tfrac{f&#39;&#39;(1)}{2} \theta^T F \theta + O(\theta^3)
+</span></p>
+<p>where <span class="math inline">F</span> is the Fisher information matrix for <span class="math inline">p_{\theta}</span> evaluated at <span class="math inline">p_{\theta}=p_0</span>.</p>
+<p><span class="math inline">E_q[k_2]=E_q[\frac{1}{2}(\log r)^2]</span> is the f-divergence where <span class="math inline">f(x)=\half (\log x)^2</span>, whereas <span class="math inline">\klqp</span> corresponds to <span class="math inline">f(x)= - \log x</span>. It’s easy to check that both have <span class="math inline">f&#39;&#39;(1)=1</span>, so both look like the same quadratic distance function for <span class="math inline">p\approx q</span>.</p>
+<p>Is it possible to write down a KL divergence estimator that is unbiased but also low variance? The general way to lower variance is with a control variate. I.e., take <span class="math inline">k_1</span> and add something that has expectation zero but is negatively correlated with <span class="math inline">k_1</span>. The only interesting quantity that’s guaranteed to have zero expectation is <span class="math inline">\ratio - 1 = r-1</span>. So for any <span class="math inline">\lambda</span>, the expression <span class="math inline">-\log r + \lambda (r - 1)</span> is an unbiased estimator of <span class="math inline">\klqp</span>. We can do a calculation to minimize the variance of this estimator and solve for <span class="math inline">\lambda</span>. But unfortunately we get an expression that depends on <span class="math inline">p</span> and <span class="math inline">q</span> and is hard to calculate analytically.</p>
+<p>However, we can choose a good <span class="math inline">\lambda</span> using a simpler strategy. Note that since log is concave, <span class="math inline">\log(x) \le x - 1</span>. Therefore, if we let <span class="math inline">\lambda=1</span>, the expression above is guaranteed to be positive. It measures the vertical distance between <span class="math inline">\log(x)</span> and its tangent. This leaves us with the estimator <span class="math inline">k_3 = (r - 1) - \log r</span>.</p>
+<p>The idea of measuring distance by looking at the difference between a convex function and its tangent plane appears in many places. It’s called a <a href="https://en.wikipedia.org/wiki/Bregman_divergence">Bregman divergence</a> and has many beautiful properties.</p>
+<p>We can generalize the above idea to get a good, always-positive estimator for any f-divergence, most notably the other KL divergence <span class="math inline">\klpq</span> (note that <span class="math inline">p</span> and <span class="math inline">q</span> are switched here). Since <span class="math inline">f</span> is by convex, and and <span class="math inline">E_q[r]=1</span>, the following is an estimator of the f-divergence: <span class="math inline">f(r) - f&#39;(1)(r-1)</span>. This is always positive because it’s the distance between <span class="math inline">f</span> and its tangent at <span class="math inline">r=1</span>, and convex functions lie above their tangent lines. Now <span class="math inline">\klpq</span> corresponds to <span class="math inline">f(x)=x \log x</span>, which has <span class="math inline">f&#39;(1)=1</span>, leaving us with the estimator <span class="math inline">r \log r - (r - 1)</span>.</p>
+<p>In summary, we have the following estimators (for samples <span class="math inline">x \sim q</span>, and <span class="math inline">r = \ratio</span>):</p>
+<ul>
+<li><span class="math inline">\klpq: r \log r - (r - 1)</span></li>
+<li><span class="math inline">\klqp: (r - 1) - \log r</span></li>
+</ul>
+<p>Now let’s compare the bias and variance of the three estimators for <span class="math inline">\klqp</span>. Suppose <span class="math inline">q=N(0,1)</span>, <span class="math inline">p=N(0.1,1)</span>. Here, the true KL is 0.005.</p>
+<table>
+<th>
+<td>
+bias/true
+</td>
+<td>
+stdev/true
+</td>
+</th>
+<tr>
+<td>
+k1
+</td>
+<td>
+0
+</td>
+<td>
+20
+</td>
+</tr>
+<tr>
+<td>
+k2
+</td>
+<td>
+0.002
+</td>
+<td>
+1.42
+</td>
+</tr>
+<tr>
+<td>
+k3
+</td>
+<td>
+0
+</td>
+<td>
+1.42
+</td>
+</tr>
+</table>
+<p>Note that the bias of k2 is incredibly low here: it’s 0.2%.</p>
+<p>Now let’s try for a larger true KL divergence. <span class="math inline">p=N(1,1)</span> gives us a true KL divergence of 0.5.</p>
+<table>
+<th>
+<td>
+bias/true
+</td>
+<td>
+stdev/true
+</td>
+</th>
+<tr>
+<td>
+k1
+</td>
+<td>
+0
+</td>
+<td>
+2
+</td>
+</tr>
+<tr>
+<td>
+k2
+</td>
+<td>
+0.25
+</td>
+<td>
+1.73
+</td>
+</tr>
+<tr>
+<td>
+k3
+</td>
+<td>
+0
+</td>
+<td>
+1.7
+</td>
+</tr>
+</table>
+<p>Here, the bias of k2 is much larger. k3 has even lower standard deviation than k2 while being unbiased, so it appears to be a strictly better estimator.</p>
+<p>Here’s the code I used to get these results:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1"></a><span class="im">import</span> torch.distributions <span class="im">as</span> dis</span>
+<span id="cb1-2"><a href="#cb1-2"></a>p <span class="op">=</span> dis.Normal(loc<span class="op">=</span><span class="dv">0</span>, scale<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb1-3"><a href="#cb1-3"></a>q <span class="op">=</span> dis.Normal(loc<span class="op">=</span><span class="fl">0.1</span>, scale<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb1-4"><a href="#cb1-4"></a>x <span class="op">=</span> q.sample(sample_shape<span class="op">=</span>(<span class="dv">10</span>_000_000,))</span>
+<span id="cb1-5"><a href="#cb1-5"></a>truekl <span class="op">=</span> dis.kl_divergence(p, q)</span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="bu">print</span>(<span class="st">&quot;true&quot;</span>, truekl)</span>
+<span id="cb1-7"><a href="#cb1-7"></a>logr <span class="op">=</span> p.log_prob(x) <span class="op">-</span> q.log_prob(x)</span>
+<span id="cb1-8"><a href="#cb1-8"></a>k1 <span class="op">=</span> <span class="op">-</span>logr</span>
+<span id="cb1-9"><a href="#cb1-9"></a>k2 <span class="op">=</span> logr <span class="op">**</span> <span class="dv">2</span> <span class="op">/</span> <span class="dv">2</span></span>
+<span id="cb1-10"><a href="#cb1-10"></a>k3 <span class="op">=</span> (logr.exp() <span class="op">-</span> <span class="dv">1</span>) <span class="op">-</span> logr</span>
+<span id="cb1-11"><a href="#cb1-11"></a><span class="cf">for</span> k <span class="kw">in</span> (k1, k2, k3):</span>
+<span id="cb1-12"><a href="#cb1-12"></a>    <span class="bu">print</span>((k.mean() <span class="op">-</span> truekl) <span class="op">/</span> truekl, k.std() <span class="op">/</span> truekl)</span></code></pre></div>
+<p><em>Thanks to Jacob Hilton and Nisan Stiennon for helpful feedback.</em></p>
+</content>
+    </entry>
+    
+    <entry>
+        <title>An Opinionated Guide to ML Research</title>
+        <link href="/blog/opinionated-guide-ml-research.html"/>
+        <content type="html"><p><em>I originally wrote this guide in back in December 2017 for the <a href="https://openai.com/blog/openai-fellows/">OpenAI Fellows program</a></em></p>
+<p>In this essay, I provide some advice to up-and-coming researchers in machine learning (ML), based on my experience doing research and advising others. The advice covers how to choose problems and organize your time. I also recommend the following prior essays on similar topics:</p>
+<ul>
+<li><a href="http://www.cs.virginia.edu/~robins/YouAndYourResearch.html"><em>You and Your Research</em> by Richard Hamming</a></li>
+<li><a href="http://michaelnielsen.org/blog/principles-of-effective-research"><em>Principles of Effective Research</em> by Michael Nielsen</a></li>
+</ul>
+<p>My essay will cover similar ground, but it’s more tuned to the peculiar features of ML.</p>
+<p>The keys to success are working on the right problems, making continual progress on them, and achieving continual personal growth. This essay is comprised of three sections, each covering one of these topics.</p>
+<p><strong>Exercise</strong>. Before continuing, it’s useful to spend a few minutes about which findings and achievements in ML have been most interesting and informative to you. Think about what makes each one stand out—whether it's a groundbreaking result that changed your perspective on some problem; or an algorithmic idea that's reusable; or a deep insight about some recurring questions. You should aspire to produce results, algorithms, and insights of this caliber.</p>
+<h3 id="choosing-problems">Choosing Problems</h3>
+<h4 id="honing-your-taste">Honing Your Taste</h4>
+<p>Your ability to choose the right problems to work on is even more important than your raw technical skill. This taste in problems is something you’ll develop over time by watching which ideas prosper and which ones are forgotten. You’ll see which ones serve as building blocks for new ideas and results, and which ones are ignored because they are too complicated or too fragile, or because the incremental improvement is too small.</p>
+<p>You might be wondering if there’s a way to speed up the process of developing a good taste for what problems to work on. In fact, there are several good ways.</p>
+<ol type="1">
+<li>Read a lot of papers, and assess them critically. If possible, discuss them with others who have a deeper knowledge of the subject.</li>
+<li>Work in a research group with other people working on similar topics. That way you can absorb their experiences as well as your own.</li>
+<li>Seek advice from experienced researchers on what to work on. There’s no shame in working on ideas suggested by other people. Ideas are cheap, and there are lots of them in the air. Your skill comes in when you decide which one to work on, and how well you execute on it.</li>
+<li>Spend time reflecting on what research is useful and fruitful. Think about questions like
+<ol type="a">
+<li>When is theory useful?</li>
+<li>When are empirical results transferable?</li>
+<li>What causes some ideas to get wide uptake, whereas others are forgotten?</li>
+<li>What are the trends in your field? Which lines of work will make the other ones obsolete?</li>
+</ol></li>
+</ol>
+<p>Items 1-3 relate to optimizing your environment and getting input from other researchers, whereas item 4 is something you do alone. As empirical evidence for the importance of 1-3, consider how the biggests bursts of impactful work tend to be tightly clustered in a small number of research groups and institutions. That’s not because these people are dramatically smarter than everyone else, it’s because they have a higher density of expertise and perspective, which puts them a little ahead of the rest of the community, and thus they dominate in generating new results. If you’re not fortunate enough to be in an environment with high density of relevant expertise, don’t despair. You’ll just have to work extra-hard to get ahead of the pack, and it’s extra-important to specialize and develop your own unique perspective.</p>
+<h4 id="idea-driven-vs-goal-driven-research">Idea-Driven vs Goal-Driven Research</h4>
+<p>Roughly speaking, there are two different ways that you might go about deciding what to work on next.</p>
+<ol type="1">
+<li><p>Idea-driven. Follow some sector of the literature. As you read a paper showing how to do X, you have an idea of how to do X even better. Then you embark on a project to test your idea.</p></li>
+<li><p>Goal-driven. Develop a vision of some new AI capabilities you’d like to achieve, and solve problems that bring you closer to that goal. (Below, I give a couple case studies from my own research, including the goal of using reinforcement learning for 3D humanoid locomotion.) In your experimentation, you test a variety of existing methods from the literature, and then you develop your own methods that improve on them.</p></li>
+</ol>
+<p>Of course, these two approaches are not mutually exclusive. Any given subfield ML is concerned with some goals (e.g., object detection). Any “idea-driven” project will represent progress towards the subfield’s goals, and thus in a sense, it’s an instance of goal-driven research. But here, I’ll take goal-driven research to mean that your goal is more specific than your whole subfield’s goal, and it’s more like <em>make X work for the first time</em> than <em>make X work better</em>.</p>
+<p>I personally recommend goal-driven research for most people, and I’ve mostly followed this strategy myself.</p>
+<p>One major downside of idea-driven research is that there’s a high risk of getting scooped or duplicating the work of others. Researchers around the world are reading the same literature, which leads them to similar ideas. To make breakthroughs with idea-driven research, you need to develop an exceptionally deep understanding of your subject, and a perspective that diverges from the rest of the community—some can do it, but it’s difficult.</p>
+<p>On the other hand, with goal-driven research, your goal will give you a perspective that’s differentiated from the rest of the community. It will lead you to ask questions that no one else is asking, enabling you to make larger leaps of progress. Goal driven research can also be much more motivating. You can wake up every morning and imagine achieving your goal—what the result would look like and how you would feel. That makes it easier to stick to a long-running research program with ups and downs. Goals also make it possible for a team of researchers to work together and attack different aspects of the problem, whereas idea-driven research is most effectively carried out by “teams” of 1-2 people.</p>
+<h6 id="case-study-of-goal-driven-research-my-work-during-graduate-school">Case Study of Goal-Driven Research: My Work During Graduate School</h6>
+<p>For the first half of my PhD, my goal was to enable robots to manipulate deformable objects—including surgical robots tying knots, and household robots folding clothes. While this goal was determined by my advisor, Pieter Abbeel, as the main goal for his lab, I developed my own opinion on how to achieve this goal—my approach was based on learning from human demonstrations, and I was going to start with the problem of getting the PR2 to tie knots in rope. Various unexpected subproblems arose, one of which was trajectory optimization, and my work on that subproblem ended up being the most influential product of the knot-tying project.</p>
+<p>For the second half of my PhD, I became interested in reinforcement learning. While there are many problem domains in which reinforcement learning can be applied, I decided to focus on robotic locomotion, since the goal was concrete and the end result was exciting to me. Specifically, my goal was to get a 3D robot to learn how to run from scratch using reinforcement learning. After some initial exploration, I decided to focus on policy gradient methods, since they seemed most amenable to understanding and mathematical analysis, and I could leverage my strength in optimization. During this period, I developed TRPO and GAE and eventually achieved the original goal of 3D humanoid locomotion.</p>
+<p>While I was working on locomotion and starting to get my first results with policy gradient methods, the DeepMind team presented the results using DQN on Atari. After this result, many people jumped on the bandwagon and tried to develop better versions of Q-learning and apply them to the Atari domain. However, I had already explored Q-learning and concluded that it wasn’t a good approach for the locomotion tasks I was working on, so I continued working on policy gradient methods, which led to TRPO, GAE, and later PPO—now my best known pieces of work. This example illustrates how choosing a different problem from the rest of the community can lead you to explore different ideas.</p>
+<h6 id="goal-driven-research-restrict-yourself-to-general-solutions">Goal Driven Research: Restrict Yourself to General Solutions</h6>
+<p>One pitfall of goal-driven research is taking your goal too literally. If you have a specific capability in mind, there’s probably some way to achieve it in an uninteresting way that doesn’t advance the field of machine learning. You should constrain your search to solutions that seem general and can be applied to other problems.</p>
+<p>For example, while working on robotic locomotion, I avoided incorporating domain information into the solution—the goal was to achieve locomotion in simulation, <em>in a way that was general and could be applied to other problems</em>. I did a bit of feature engineering and reward shaping in order to see the first signs of life, but I was careful to keep my changes simple and not let them affect the algorithm I was developing. Now that I am using videogames as a testbed, I make sure that my algorithmic ideas are not specific to this setting—that they equally well could be applied to robotics.</p>
+<h4 id="aim-high-and-climb-incrementally-towards-high-goals">Aim High, and Climb Incrementally Towards High Goals</h4>
+<p>Sometimes, people who are both exceptionally smart and hard-working fail to do great research. In my view, the main reason for this failure is that they work on unimportant problems. When you embark on a research project, you should ask yourself: how large is the potential upside? Will this be a 10% improvement or a 10X improvement? I often see researchers take on projects that seem sensible but could only possibly yield a small improvement to some metric.</p>
+<p>Incremental work (those 10% improvements) are most useful in the context of a larger goal that you are trying to achieve. For example, the seminal paper on ImageNet classification using convolutional neural networks (Krizhevsky, Sutskever, &amp; Hinton, 2012) does not contain any radically new algorithmic components, rather, it stacks up a large number of small improvements to achieve an unprecedented result that was surprising to almost everyone at the time (though we take it for granted now). During your day-to-day work, you’ll make incremental improvements in performance and in understanding. But these small steps should be moving you towards a larger goal that represents a non-incremental advance.</p>
+<p>If you are working on incremental ideas, be aware that their usefulness depends on their complexity. A method that slightly improves on the baseline better be very simple, otherwise no one will bother using it—not even you. If it gives a 10% improvement, it better be 2 lines of code, whereas if it's a 50% improvement, it can add 10 lines of code, etc. (I’m just giving these numbers for illustration, the actual numbers will obviously depend on the domain.)</p>
+<p>Go back and look at the list of machine learning achievements you admire the most. Does your long-term research plan have the potential to reach the level of those achievements? If you can’t see a path to something that you’d be proud of, then you should revise your plan so it does have that potential.</p>
+<h3 id="making-continual-progress">Making Continual Progress</h3>
+<p>To develop new algorithms and insights in machine learning, you need to concentrate your efforts on a problem for a long period of time. This section is about developing effective habits for this long-term problem solving process, enabling you to continually build towards great results.</p>
+<h4 id="keep-a-notebook-and-review-it">Keep a Notebook, and Review It</h4>
+<p>I strongly advise you to keep a notebook, where you record your daily ideas and experiments. I have done this through 5 years of grad school and 2 years at OpenAI, and I feel that it has been tremendously helpful.</p>
+<p>I create an entry for each day. In this entry, I write down what I’m doing, ideas I have, and experimental results (pasting in plots and tables). Every 1 or 2 weeks, I do a review, where I read all of my daily entries and I condense the information into a summary. Usually my review contains sections for <em>experimental findings</em>, <em>insights</em> (which might come from me, my colleagues, or things I read), <em>code progress</em> (what did I implement), and <em>next steps / future work</em>. After I do my week in review, I often look at the previous week to see if I followed up on everything I thought of that week. Also, while doing this review, I sometimes transfer information into other sources of notes. (For example, I keep a list of backburner ideas and projects, separate from my notebook.)</p>
+<p>What’s the value in keeping this notebook and doing the regular reviews?</p>
+<p>First, the notebook is a good place to write down ideas as soon as you have them, so you can revisit them later. Often, when I revisit my journal entries during the week in review, I’ll fill in a missing piece in a puzzle, which didn’t occur to me at the time.</p>
+<p>Second, the notebook helps you keep your experimental results in a unified place, so you can easily find the results later. It’s easy to forget about your conclusions, e.g., which hyperparameters made a difference, and you’ll want to revisit your old notebook entries.</p>
+<p>Third, the notebook lets you monitor your use of time. You might wonder “where did last week go?”, and the notebook will help you answer that question. You might be disappointed with your throughput and realize you need to work on your time management. You also might look back at several months and realize that you’ve been jumping around between ideas too much—that you have a few half-finished projects but you didn’t follow any of these threads long enough to yield a notable result.</p>
+<h4 id="when-to-switch-problems">When to Switch Problems</h4>
+<p>To solve a challenging problem, you need to spend a sufficient amount of time on it. But in empirical machine learning research, it’s hard to know if you’ve tried an idea hard enough. Sometimes the idea has the potential to work, but if you get one detail wrong, you’ll see no signs of life. But other ideas are simply doomed to fail no matter how hard you work on them.</p>
+<p>In my experience, switching problems too frequently (and giving up on promising ideas) is a more common failure mode than not switching enough. Often, while you’re engaged in the long slog towards getting your current idea to work, another promising idea will come along, and you’ll want to jump to that idea. If your idea is quick to try and the potential upside is large, then go ahead and do it. But more commonly, your initial results on the new idea will be disappointing, and it’ll take a more sustained effort to yield significant results.</p>
+<p>As a rule of thumb, when you look back at which projects you’ve been working on over a period of months, you should find that there have been lots of small dead ends, but the majority of your time has been directed towards projects that yielded a deliverable such as a paper or a blog post. If you look back at your time and see that a substantial fraction was spent on half-finished projects—which were not definite failures, but which you abandoned in favor of some newer idea—then you should make a stronger effort towards consistency and follow-through in the future.</p>
+<p>One strategy, which I haven’t tried personally but makes a lot of sense upon reflection, is to devote some fixed time budget to trying out new ideas that diverge from your main line of work. Say, spend one day per week on something totally different from your main project. This would constitute a kind of epsilon-greedy exploration, and it would also help to broaden your knowledge.</p>
+<h3 id="personal-development">Personal Development</h3>
+<p>No matter how you allocate your time during your research journey, you are bound to learn a lot. Each project will present new challenges, and you can pick up the background material and skills as you go along. However, you can significantly improve your chances to do great work in the long term by regularly setting aside time for your personal development. Specifically, you should allocate some fraction of your time towards improving your general knowledge of ML as opposed to working on your current project. If you don’t allocate this time, then your knowledge is likely to plateau after you learn the basics that you need for your day-to-day work. It’s easy to settle into a comfort zone of methods you understand well—you may need to expend active effort to expand this zone.</p>
+<p>The main ways to build your knowledge of ML are to read textbooks, theses and papers; and to reimplement algorithms from these sources. Early on in your career, I recommend splitting your time about evenly between textbooks and papers. You should choose a small set of relevant textbooks and theses to gradually work through, and you should also reimplement the models and algorithms from your favorite papers.</p>
+<p>Most students of machine learning don’t spend time reading textbooks after they finish their school courses. I think this is a mistake, since textbooks are a much more dense way to absorb knowledge than papers. Each conference paper typically contains one main new idea, along with a background section that’s too concise to learn anything from. There’s a lot of overhead, since you typically need to spend more time understanding the notation and terminology than the idea itself. On the other hand, good textbooks collect decades of ideas and present them in the proper order with the same notation. Besides reading the introductory machine learning textbooks, read other books in your areas of interest. A couple of my favorites were <em>Numerical Optimization</em> by Nocedal &amp; Wright, and <em>Elements of Information Theory</em> by Cover &amp; Thomas.</p>
+<p>Besides textbooks, I recommend reading PhD theses of researchers whose work interests you. PhD theses in ML usually are ordered as follows: (1) introductory and background material, (2) several papers that were previously published at conferences (it’s said that you just have to “staple together” your papers to write your thesis), and (3) a conclusion and outlook. You’re likely to benefit most from parts (1) and (3), since they contain a unifying view of the past and future of the field, written by an expert. Recent theses are often the best place to find a literature review of an active field, but older theses also often contain valuable gems of insight.</p>
+<p>Textbooks and theses are good for building up your foundational knowledge, but you’ll also need to read a lot of papers to bring your knowledge up to the frontier. When you are just starting your research career, I recommend spending a lot of time reimplementing ideas from papers, and comparing your results to the published ones. First of all, this gives you a much deeper understanding of the topic than you’d get by passively reading. Second, you’ll gain experience running experiments, and you’ll get much quicker feedback by reimplementing existing work (where the desired level of performance is known) than by doing original research. Once you can easily reproduce the state-of-the-art, you’ll be ready to go beyond it.</p>
+<p>Besides reading seminal papers and reimplementing them, you should also keep track of the less exceptional papers being published in your field. Reading and skimming the incoming papers with a critical eye helps you notice the trends in your field (perhaps you notice that a lot of papers are using some new technique and getting good results—maybe you should investigate it). It also helps you build up your taste by observing the dependency graph of ideas—which ideas become widely used and open the door to other ideas.</p>
+<p>Go forth and do great research!</p>
+</content>
+    </entry>
+    
+</feed>
